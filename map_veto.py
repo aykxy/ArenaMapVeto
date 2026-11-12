@@ -749,31 +749,61 @@ class VetoPage:
         actions={action['map_id']:action for action in record['actions']}
         picks=selected_maps(record)
         decider=next((a for a in picks if a['kind']=='decider'),None)
+        from PySide6.QtGui import QPen
         for i,m in enumerate(record['pool']):
-            col,row=i%3,i//3
-            x=44+col*240;y=221+row*188
-            rect(x,y,228,175,'#29292c')
-            picture(m.get('preview'),x+8,y+8,212,113)
+            col,row=i%4,i//4
+            x=44+col*180;y=221+row*286
+            cw,ch=170,274
+            rect(x,y,cw,ch,'#29292c')
             action=actions.get(m['id'])
             state=('BANNED' if action['kind']=='ban' else 'PICKED') if action else (
                 'DECIDER' if decider and decider['map_id']==m['id'] else 'AVAILABLE')
             colour={'BANNED':'#ff4556','PICKED':'#00d78a','DECIDER':'#00d78a',
                     'AVAILABLE':'#e8e8ec'}[state]
+            # Source images are portrait; scale to fill a portrait viewport, no distortion.
+            ix,iy,iw,ih=x+7,y+7,156,220
+            rect(ix,iy,iw,ih,'#222225')
+            source_path=m.get('preview')
+            if source_path and Path(source_path).is_file():
+                source=QPixmap(source_path)
+                if not source.isNull():
+                    scaled=source.scaled(iw,ih,Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                                         Qt.TransformationMode.SmoothTransformation)
+                    painter.save()
+                    painter.setClipRect(QRect(ix,iy,iw,ih))
+                    painter.drawPixmap(ix+(iw-scaled.width())//2,
+                                       iy+(ih-scaled.height())//2,scaled)
+                    painter.restore()
             if state in ('BANNED','PICKED','DECIDER'):
-                glow=QColor(colour)
-                for x1,y1,x2,y2,area in (
-                    (x,y,x+26,y,(x,y,26,175)),
-                    (x+228,y,x+202,y,(x+202,y,26,175)),
-                    (x,y,x,y+26,(x,y,228,26)),
-                    (x,y+175,x,y+149,(x,y+149,228,26)),
-                ):
-                    gradient=QLinearGradient(x1,y1,x2,y2)
-                    outer=QColor(glow);outer.setAlpha(125)
-                    inner=QColor(glow);inner.setAlpha(0)
-                    gradient.setColorAt(0,outer);gradient.setColorAt(1,inner)
-                    painter.fillRect(QRect(*area),gradient)
-            text(x+9,y+122,210,27,m['name'],15,'#ffffff',True)
-            text(x+9,y+149,210,21,state,12,colour,True)
+                tint=QColor(colour);tint.setAlpha(65)
+                painter.fillRect(QRect(ix,iy,iw,ih),tint)
+                # Colour treatment covers the screenshot itself, not only the card border.
+                for edge_y,reverse in ((iy,False),(iy+ih-38,True)):
+                    grad=QLinearGradient(0,edge_y,0,edge_y+38)
+                    edge=QColor(colour);edge.setAlpha(155)
+                    clear=QColor(colour);clear.setAlpha(0)
+                    grad.setColorAt(0,clear if reverse else edge)
+                    grad.setColorAt(1,edge if reverse else clear)
+                    painter.fillRect(QRect(ix,edge_y,iw,38),grad)
+                cx,cy=ix+iw//2,iy+ih//2
+                radius=35
+                painter.setPen(QPen(QColor('#171719'),12))
+                if state=='BANNED':
+                    painter.drawEllipse(QRect(cx-radius,cy-radius,2*radius,2*radius))
+                    painter.drawLine(cx-25,cy-25,cx+25,cy+25)
+                    painter.setPen(QPen(QColor('#ff4556'),8))
+                    painter.drawEllipse(QRect(cx-radius,cy-radius,2*radius,2*radius))
+                    painter.drawLine(cx-25,cy-25,cx+25,cy+25)
+                else:
+                    painter.drawLine(cx-28,cy,cx-7,cy+20)
+                    painter.drawLine(cx-7,cy+20,cx+31,cy-25)
+                    painter.setPen(QPen(QColor('#00d78a'),9))
+                    painter.drawLine(cx-28,cy,cx-7,cy+20)
+                    painter.drawLine(cx-7,cy+20,cx+31,cy-25)
+                painter.setPen(QPen(QColor(colour),2))
+                painter.drawRect(QRect(ix,iy,iw,ih))
+            text(x+8,y+230,cw-16,22,m['name'].upper(),14,'#ffffff',True)
+            text(x+8,y+251,cw-16,18,state,11,colour,True)
         for i,action in enumerate(record['actions']):
             colour='#ff4556' if action['kind']=='ban' else '#00d78a'
             line=f"{i+1}. {record['teams'][action['team']]} {action['kind']} {name_of(record,action['map_id'])}"
@@ -788,9 +818,9 @@ class VetoPage:
             text(805,side_y+10,349,31,'SIDE CHOICE: '+record['teams'][owner],17,GREEN,True)
             text(805,side_y+43,349,25,name_of(record,side['map_id'])+' — RED or BLUE?',14,'#ffffff')
             map_rec=next(m for m in record['pool'] if m['id']==side['map_id'])
-            picture(map_rec.get('spawns'),805,side_y+75,350,155)
-            text(805,side_y+237,350,26,'Other team receives the opposite side',12,'#aaaaaf')
-            confirmed_y=side_y+274
+            picture(map_rec.get('spawns'),805,side_y+75,350,215)
+            text(805,side_y+295,350,26,'Other team receives the opposite side',12,'#aaaaaf')
+            confirmed_y=side_y+325
         else:
             # No empty side-choice panel: show the confirmed side assignments here.
             confirmed_y=side_y+10
