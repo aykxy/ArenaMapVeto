@@ -642,18 +642,23 @@ class VetoPage:
         lv.addWidget(label('MAP ACTIONS: '+str(count)+'/6  ·  SIDES CONFIRMED: '+
                            str(chosen)+'/'+str(total),True))
         grid=QWidget();g=QGridLayout(grid);g.setContentsMargins(0,0,0,0);g.setSpacing(9)
-        g.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        g.setAlignment(Qt.AlignmentFlag.AlignTop)
+        for column in range(4):
+            g.setColumnStretch(column,1)
         actions={action['map_id']:action for action in record['actions']}
         decider=selected_maps(record)[-1] if not step else None
         for i,m in enumerate(record['pool']):
             action=actions.get(m['id'])
             status=('BANNED' if action['kind']=='ban' else 'PICKED') if action else ('DECIDER' if decider and decider['map_id']==m['id'] else 'AVAILABLE')
-            card=QFrame();card.setObjectName('surface');card.setFixedWidth(170)
+            card=QFrame();card.setObjectName('surface')
+            card.setMinimumWidth(140)
+            card.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
             cv=QVBoxLayout(card);cv.setSpacing(3)
             cv.setContentsMargins(7,7,7,7)
             # Narrow portrait frame matches the source screenshots, without cropping.
-            portrait=StatusImageLabel(m.get('preview'),156,220,status)
-            portrait.setFixedSize(156,220)
+            portrait=StatusImageLabel(m.get('preview'),156,260,status)
+            portrait.setMinimumHeight(260)
+            portrait.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
             cv.addWidget(portrait)
             cv.addWidget(label(m['name'].upper()))
             colour={'BANNED':'#ff4556','PICKED':'#00d78a','DECIDER':'#00d78a','AVAILABLE':'#bfc1c6'}[status]
@@ -669,6 +674,7 @@ class VetoPage:
                     if self.save():self.veto_page()
                 cv.addWidget(btn(step['kind'].upper(),select,True))
             g.addWidget(card,i//4,i%4)
+        g.setRowStretch(2,1)
         lv.addWidget(grid,0,Qt.AlignmentFlag.AlignTop)
         lv.addStretch(1)
         if step and pending_sides:
