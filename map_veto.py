@@ -520,7 +520,7 @@ class VetoPage:
         self.w.cv.addWidget(heading)
         content=QWidget();columns=QHBoxLayout(content);columns.setContentsMargins(0,0,0,0);columns.setSpacing(14)
         left,lv=panel();right,rv=panel()
-        columns.addWidget(left,3);columns.addWidget(right,2)
+        columns.addWidget(left,4);columns.addWidget(right,2)
         step=next_action(record)
         pending_sides=[action for action in selected_maps(record) if action['map_id'] not in record.get('sides',{})]
         if step:
@@ -546,18 +546,18 @@ class VetoPage:
         lv.addWidget(label('MAP ACTIONS: '+str(count)+'/6  ·  SIDES CONFIRMED: '+
                            str(chosen)+'/'+str(total),True))
         grid=QWidget();g=QGridLayout(grid);g.setContentsMargins(0,0,0,0);g.setSpacing(9)
+        g.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         actions={action['map_id']:action for action in record['actions']}
         decider=selected_maps(record)[-1] if not step else None
         for i,m in enumerate(record['pool']):
             action=actions.get(m['id'])
             status=('BANNED' if action['kind']=='ban' else 'PICKED') if action else ('DECIDER' if decider and decider['map_id']==m['id'] else 'AVAILABLE')
-            card=MapStatusCard(status);cv=QVBoxLayout(card);cv.setSpacing(5)
-            cv.setContentsMargins(9,9,9,9)
-            # Portrait-first cards match the supplied Arena map screenshots.
-            # Keep the full image visible; never crop the map itself.
-            portrait=image_label(m.get('preview'),190,230)
-            portrait.setFixedHeight(230)
-            portrait.setMinimumWidth(175)
+            card=MapStatusCard(status);card.setFixedWidth(160)
+            cv=QVBoxLayout(card);cv.setSpacing(5)
+            cv.setContentsMargins(8,8,8,8)
+            # Narrow portrait frame matches the source screenshots, without cropping.
+            portrait=image_label(m.get('preview'),142,205)
+            portrait.setFixedSize(142,205)
             cv.addWidget(portrait)
             cv.addWidget(label(m['name']))
             colour={'BANNED':'#ff4556','PICKED':'#00d78a','DECIDER':'#00d78a','AVAILABLE':'#bfc1c6'}[status]
@@ -572,7 +572,7 @@ class VetoPage:
                     apply_map(record,mid)
                     if self.save():self.veto_page()
                 cv.addWidget(btn(step['kind'].upper(),select,True))
-            g.addWidget(card,i//3,i%3)
+            g.addWidget(card,i//4,i%4)
         lv.addWidget(grid)
         if step and pending_sides:
             rv.addWidget(label('BOTH ACTIONS ARE OPEN — '+record['teams'][step['team']].upper()+
