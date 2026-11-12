@@ -228,6 +228,38 @@ class StatusImageLabel(AspectImageLabel):
         painter.end()
 
 
+class SpawnZoomLabel(QLabel):
+    """Mild centre zoom for spawn maps; full red/blue markers remain in view."""
+    def __init__(self, path):
+        super().__init__()
+        self.source=QPixmap(path) if path and Path(path).is_file() else QPixmap()
+        self.setFixedHeight(245)
+        self.setMinimumWidth(1)
+        self.setStyleSheet('background:#28282b;border:1px solid #47474a;')
+        if self.source.isNull():
+            self.setText('SPAWN IMAGE NOT UPLOADED')
+            self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.source.isNull():
+            return
+        painter=QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        area=self.contentsRect()
+        # Centre crop only 5% on each edge; the spawn dots sit inside this margin.
+        crop_w=max(1,int(self.source.width()/1.10))
+        crop_h=max(1,int(self.source.height()/1.10))
+        crop=QRectF((self.source.width()-crop_w)/2,
+                    (self.source.height()-crop_h)/2,crop_w,crop_h)
+        fitted=self.source.size().scaled(area.size(),Qt.AspectRatioMode.KeepAspectRatio)
+        target=QRectF(area.center().x()-fitted.width()/2,
+                      area.center().y()-fitted.height()/2,
+                      fitted.width(),fitted.height())
+        painter.drawPixmap(target,self.source,crop)
+        painter.end()
+
+
 def image_label(path, width=330, height=185):
     return AspectImageLabel(path, width, height)
 
@@ -622,7 +654,7 @@ class VetoPage:
             portrait=StatusImageLabel(m.get('preview'),142,205,status)
             portrait.setFixedSize(142,205)
             cv.addWidget(portrait)
-            cv.addWidget(label(m['name']))
+            cv.addWidget(label(m['name'].upper()))
             colour={'BANNED':'#ff4556','PICKED':'#00d78a','DECIDER':'#00d78a','AVAILABLE':'#bfc1c6'}[status]
             state=label(status);state.setStyleSheet('color:'+colour+';font-weight:bold;')
             cv.addWidget(state)
@@ -636,7 +668,8 @@ class VetoPage:
                     if self.save():self.veto_page()
                 cv.addWidget(btn(step['kind'].upper(),select,True))
             g.addWidget(card,i//4,i%4)
-        lv.addWidget(grid)
+        lv.addWidget(grid,0,Qt.AlignmentFlag.AlignTop)
+        lv.addStretch(1)
         if step and pending_sides:
             rv.addWidget(label('BOTH ACTIONS ARE OPEN — '+record['teams'][step['team']].upper()+
                                ' CAN '+step['kind'].upper()+' THE NEXT MAP WHILE SIDE PICKS ARE DECIDED.'))
@@ -670,8 +703,7 @@ class VetoPage:
             rv.addWidget(label('The other team gets the opposite side. You can continue map bans/picks at any time.',True))
             map_rec=next(m for m in record['pool'] if m['id']==side_action['map_id'])
             # Larger, uncropped spawn diagram keeps both coloured spawn markers visible.
-            spawn_preview=image_label(map_rec.get('spawns'),480,220)
-            spawn_preview.setFixedHeight(220)
+            spawn_preview=SpawnZoomLabel(map_rec.get('spawns'))
             rv.addWidget(spawn_preview)
             choices=QWidget();cr=QHBoxLayout(choices);cr.setContentsMargins(0,0,0,0)
             def choose_side(colour,mid=side_action['map_id']):
@@ -818,7 +850,16 @@ class VetoPage:
             text(805,side_y+10,349,31,'SIDE CHOICE: '+record['teams'][owner],17,GREEN,True)
             text(805,side_y+43,349,25,name_of(record,side['map_id'])+' — RED or BLUE?',14,'#ffffff')
             map_rec=next(m for m in record['pool'] if m['id']==side['map_id'])
-            picture(map_rec.get('spawns'),805,side_y+75,350,215)
+            # Zoom the spawn diagram slightly, preserving the interior markers.
+            spawn_path=map_rec.get('spawns')
+            if spawn_path and Path(spawn_path).is_file():
+                spawn_pix=QPixmap(spawn_path)
+                if not spawn_pix.isNull():
+                    sw,sh=spawn_pix.width(),spawn_pix.height()
+                    crop=QRectF(sw*.045,sh*.045,sw*.91,sh*.91)
+                    painter.drawPixmap(QRectF(805,side_y+75,350,215),spawn_pix,crop)
+                else:picture(spawn_path,805,side_y+75,350,215)
+            else:picture(spawn_path,805,side_y+75,350,215)
             text(805,side_y+295,350,26,'Other team receives the opposite side',12,'#aaaaaf')
             confirmed_y=side_y+325
         else:
