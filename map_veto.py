@@ -618,23 +618,22 @@ class VetoPage:
         columns.addWidget(left,4);columns.addWidget(right,2)
         step=next_action(record)
         pending_sides=[action for action in selected_maps(record) if action['map_id'] not in record.get('sides',{})]
+        # Same clear current-turn banner used in the Discord export.
         if step:
-            turn=QFrame()
-            turn.setStyleSheet('QFrame{background:#203127;border:2px solid #58dc00;border-radius:10px;}'
-                               'QLabel{border:none;background:transparent;}')
-            turn_layout=QVBoxLayout(turn)
-            turn_layout.setContentsMargins(18,14,18,14)
-            who=label(record['teams'][step['team']].upper())
-            who.setStyleSheet('font-size:30px;font-weight:900;color:#b2ff91;')
-            turn_layout.addWidget(who)
-            instruction=label('NEXT MAP ACTION  ·  '+step['kind'].upper()+' A MAP  ·  STEP '+str(step['step'])+'/6')
-            instruction.setStyleSheet('font-size:17px;font-weight:800;color:#f2f7f2;')
-            turn_layout.addWidget(instruction)
-            lv.addWidget(turn)
+            turn_text=(record['teams'][step['team']].upper()+' — '+
+                       step['kind'].upper()+' A MAP  ·  STEP '+str(step['step'])+'/6')
         elif record.get('completed'):
-            lv.addWidget(section_heading('VETO COMPLETE — ALL SIDES CONFIRMED'))
+            turn_text='VETO COMPLETE — ALL SIDES CONFIRMED'
         else:
-            lv.addWidget(section_heading('MAP VETO COMPLETE — AWAITING SIDE PICKS'))
+            turn_text='MAP SELECTION COMPLETE — AWAITING SIDES'
+        turn_banner=QFrame()
+        turn_banner.setStyleSheet('QFrame{background:#394630;border:none;border-radius:3px;}'
+                                  'QLabel{color:#58dc00;background:transparent;border:none;'
+                                  'font-size:19px;font-weight:900;}')
+        banner_layout=QHBoxLayout(turn_banner)
+        banner_layout.setContentsMargins(14,8,14,8)
+        banner_layout.addWidget(label('CURRENT TURN: '+turn_text))
+        self.w.cv.addWidget(turn_banner)
         count=len(record['actions'])
         chosen=len(record.get('sides',{}))
         total={'BO1':1,'BO3':3,'BO5':5}[record['format']]
