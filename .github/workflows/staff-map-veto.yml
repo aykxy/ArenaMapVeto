@@ -48,6 +48,7 @@ jobs:
       - name: Prepare icon and font
         shell: pwsh
         run: |
+          python -c "import base64,pathlib; pathlib.Path('assets/arena_logo.png').write_bytes(base64.b64decode(pathlib.Path('assets/arena_logo.png.b64').read_text()))"
           python -c "from PIL import Image; image=Image.open('assets/arena_logo.png').convert('RGBA'); image.save('assets/arena_logo.ico', format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])"
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/google/fonts/main/ofl/rajdhani/Rajdhani-SemiBold.ttf" -OutFile "assets/Rajdhani-SemiBold.ttf"
       - name: Build portable staff executable
