@@ -5,11 +5,11 @@ import secrets
 import uuid
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QRectF
 from PySide6.QtGui import QPixmap, QGuiApplication, QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import (
     QWidget,QFrame,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QComboBox,QLineEdit,
-    QFileDialog,QMessageBox,QScrollArea,QGridLayout,QInputDialog,QDialog,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QHeaderView,QGraphicsBlurEffect
+    QFileDialog,QMessageBox,QScrollArea,QGridLayout,QInputDialog,QDialog,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QHeaderView,QGraphicsBlurEffect, QSizePolicy
 )
 
 SEQUENCES = {
@@ -183,6 +183,49 @@ class AspectImageLabel(QLabel):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._refresh_image()
+
+
+class StatusImageLabel(AspectImageLabel):
+    """Status tint and symbol drawn on top of the map image, not behind it."""
+    def __init__(self, path, width, height, status):
+        self.status = status
+        super().__init__(path, width, height)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.status not in ('BANNED', 'PICKED', 'DECIDER') or self.source.isNull():
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = self.contentsRect()
+        scaled = self.source.size().scaled(rect.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        image_rect = QRectF(rect.center().x()-scaled.width()/2,
+                            rect.center().y()-scaled.height()/2,
+                            scaled.width(), scaled.height())
+        colour = QColor('#ff4556' if self.status == 'BANNED' else '#00d78a')
+        tint = QColor(colour); tint.setAlpha(65)
+        painter.fillRect(image_rect, tint)
+        gradient = QLinearGradient(image_rect.left(), image_rect.top(),
+                                   image_rect.left(), image_rect.bottom())
+        edge = QColor(colour); edge.setAlpha(110)
+        clear = QColor(colour); clear.setAlpha(0)
+        gradient.setColorAt(0,edge);gradient.setColorAt(.25,clear)
+        gradient.setColorAt(.75,clear);gradient.setColorAt(1,edge)
+        painter.fillRect(image_rect,gradient)
+        cx,cy=image_rect.center().x(),image_rect.center().y()
+        radius=min(image_rect.width()*.35,image_rect.height()*.23,42)
+        from PySide6.QtGui import QPen
+        pen=QPen(colour, max(5,radius*.17))
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        if self.status=='BANNED':
+            painter.drawEllipse(QRectF(cx-radius,cy-radius,2*radius,2*radius))
+            d=radius*.7
+            painter.drawLine(int(cx-d),int(cy-d),int(cx+d),int(cy+d))
+        else:
+            painter.drawLine(int(cx-radius*.85),int(cy),int(cx-radius*.2),int(cy+radius*.6))
+            painter.drawLine(int(cx-radius*.2),int(cy+radius*.6),int(cx+radius*.9),int(cy-radius*.7))
+        painter.end()
 
 
 def image_label(path, width=330, height=185):
@@ -576,7 +619,7 @@ class VetoPage:
             cv=QVBoxLayout(card);cv.setSpacing(5)
             cv.setContentsMargins(8,8,8,8)
             # Narrow portrait frame matches the source screenshots, without cropping.
-            portrait=image_label(m.get('preview'),142,205)
+            portrait=StatusImageLabel(m.get('preview'),142,205,status)
             portrait.setFixedSize(142,205)
             cv.addWidget(portrait)
             cv.addWidget(label(m['name']))
@@ -627,8 +670,8 @@ class VetoPage:
             rv.addWidget(label('The other team gets the opposite side. You can continue map bans/picks at any time.',True))
             map_rec=next(m for m in record['pool'] if m['id']==side_action['map_id'])
             # Larger, uncropped spawn diagram keeps both coloured spawn markers visible.
-            spawn_preview=image_label(map_rec.get('spawns'),480,300)
-            spawn_preview.setMinimumHeight(300)
+            spawn_preview=image_label(map_rec.get('spawns'),480,220)
+            spawn_preview.setFixedHeight(220)
             rv.addWidget(spawn_preview)
             choices=QWidget();cr=QHBoxLayout(choices);cr.setContentsMargins(0,0,0,0)
             def choose_side(colour,mid=side_action['map_id']):
