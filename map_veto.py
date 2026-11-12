@@ -606,7 +606,10 @@ class VetoPage:
             rv.addWidget(side_banner)
             rv.addWidget(label('The other team gets the opposite side. You can continue map bans/picks at any time.',True))
             map_rec=next(m for m in record['pool'] if m['id']==side_action['map_id'])
-            rv.addWidget(image_label(map_rec.get('spawns'),340,155))
+            # Larger, uncropped spawn diagram keeps both coloured spawn markers visible.
+            spawn_preview=image_label(map_rec.get('spawns'),480,260)
+            spawn_preview.setMinimumHeight(260)
+            rv.addWidget(spawn_preview)
             choices=QWidget();cr=QHBoxLayout(choices);cr.setContentsMargins(0,0,0,0)
             def choose_side(colour,mid=side_action['map_id']):
                 apply_side(record,mid,colour)
