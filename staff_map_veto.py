@@ -110,29 +110,43 @@ class StaffVetoWindow(QMainWindow):
         QTimer.singleShot(1800, self.updates.check)
 
     def install_default_maps(self):
-        """Install bundled maps only on an empty library; never reset staff edits."""
-        if self.data['map_library']:
-            return
+        """Merge bundled maps into an older library without changing veto history."""
         import shutil
         import uuid
         source = ASSETS / 'maps'
         if not all((source / slug / image).is_file()
                    for _, slug in DEFAULT_MAPS for image in ('preview.png', 'spawns.png')):
-            return  # Do not initialise an incomplete rotation.
+            return  # Never initialise a partial bundled map set.
         self.assets_directory.mkdir(parents=True, exist_ok=True)
-        library = []
+        library = self.data['map_library']
+        active = self.data['active_map_ids']
+        was_empty = not library
+        changed = False
         for name, slug in DEFAULT_MAPS:
-            paths = {}
-            for key, filename in (('preview','preview.png'), ('spawns','spawns.png')):
+            stable_id = str(uuid.uuid5(uuid.NAMESPACE_URL, 'arena-map-veto/'+slug))
+            existing = next((m for m in library if m.get('id') == stable_id), None)
+            if existing is None:
+                existing = next((m for m in library
+                                 if m.get('name', '').strip().casefold() == name.casefold()), None)
+            is_new = existing is None
+            if is_new:
+                existing = {'id': stable_id, 'name': name, 'preview': '', 'spawns': ''}
+                library.append(existing)
+                changed = True
+            for key, filename in (('preview', 'preview.png'), ('spawns', 'spawns.png')):
+                current = existing.get(key, '')
+                if current and Path(current).is_file():
+                    continue  # Preserve images already customised by staff.
                 dest = self.assets_directory / (slug + '-' + filename)
-                if not dest.exists():
-                    shutil.copy2(source / slug / filename, dest)
-                paths[key] = str(dest)
-            library.append({'id': str(uuid.uuid5(uuid.NAMESPACE_URL, 'arena-map-veto/'+slug)),
-                            'name': name, **paths})
-        self.data['map_library'] = library
-        self.data['active_map_ids'] = [m['id'] for m in library if m['name'] != 'City Hall']
-        self.save()
+                shutil.copy2(source / slug / filename, dest)
+                existing[key] = str(dest)
+                changed = True
+            if name != 'City Hall' and len(active) < 7 and (was_empty or is_new):
+                if existing['id'] not in active:
+                    active.append(existing['id'])
+                    changed = True
+        if changed:
+            self.save()
 
     def header(self, title, subtitle):
         heading = QLabel('ARENA  /  ' + title)
