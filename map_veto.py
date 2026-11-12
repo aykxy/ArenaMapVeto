@@ -250,7 +250,7 @@ class VetoPage:
         if not library:v.addWidget(label('No maps added yet. Add your FiveM maps below.',True))
         for m in library:
             line=QWidget();r=QHBoxLayout(line);r.setContentsMargins(0,0,0,0)
-            r.addWidget(label(('●  ' if m['id'] in active else '○  ')+m['name']),1)
+            r.addWidget(label(('●  ' if m['id'] in active else '○  ')+m['name'].upper()),1)
             def toggle(checked=False,mid=m['id']):
                 if mid in active:active.remove(mid)
                 elif len(active)<7:active.append(mid)
