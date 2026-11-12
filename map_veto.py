@@ -252,10 +252,12 @@ class SpawnZoomLabel(QLabel):
         crop_h=max(1,int(self.source.height()/1.10))
         crop=QRectF((self.source.width()-crop_w)/2,
                     (self.source.height()-crop_h)/2,crop_w,crop_h)
-        fitted=self.source.size().scaled(area.size(),Qt.AspectRatioMode.KeepAspectRatio)
-        target=QRectF(area.center().x()-fitted.width()/2,
-                      area.center().y()-fitted.height()/2,
-                      fitted.width(),fitted.height())
+        # Fit the CROPPED region, not the original full-size image.
+        # This avoids vertically stretching the spawn diagram.
+        ratio=min(area.width()/crop.width(),area.height()/crop.height())
+        tw,th=crop.width()*ratio,crop.height()*ratio
+        target=QRectF(area.center().x()-tw/2,
+                      area.center().y()-th/2,tw,th)
         painter.drawPixmap(target,self.source,crop)
         painter.end()
 
@@ -646,12 +648,12 @@ class VetoPage:
         for i,m in enumerate(record['pool']):
             action=actions.get(m['id'])
             status=('BANNED' if action['kind']=='ban' else 'PICKED') if action else ('DECIDER' if decider and decider['map_id']==m['id'] else 'AVAILABLE')
-            card=MapStatusCard(status);card.setFixedWidth(160)
-            cv=QVBoxLayout(card);cv.setSpacing(5)
-            cv.setContentsMargins(8,8,8,8)
+            card=QFrame();card.setObjectName('surface');card.setFixedWidth(170)
+            cv=QVBoxLayout(card);cv.setSpacing(3)
+            cv.setContentsMargins(7,7,7,7)
             # Narrow portrait frame matches the source screenshots, without cropping.
-            portrait=StatusImageLabel(m.get('preview'),142,205,status)
-            portrait.setFixedSize(142,205)
+            portrait=StatusImageLabel(m.get('preview'),156,220,status)
+            portrait.setFixedSize(156,220)
             cv.addWidget(portrait)
             cv.addWidget(label(m['name'].upper()))
             colour={'BANNED':'#ff4556','PICKED':'#00d78a','DECIDER':'#00d78a','AVAILABLE':'#bfc1c6'}[status]
@@ -775,7 +777,6 @@ class VetoPage:
         text(42,114,1116,36,'CURRENT TURN: '+status,17,GREEN,True)
         rect(28,170,745,642,'#323234')
         rect(789,170,383,642,'#323234')
-        text(44,178,712,32,'ALL SEVEN MAPS',19,'#ffffff',True)
         text(805,178,349,32,'VETO HISTORY',19,'#ffffff',True)
         actions={action['map_id']:action for action in record['actions']}
         picks=selected_maps(record)
@@ -783,7 +784,7 @@ class VetoPage:
         from PySide6.QtGui import QPen
         for i,m in enumerate(record['pool']):
             col,row=i%4,i//4
-            x=44+col*180;y=221+row*286
+            x=44+col*180;y=190+row*286
             cw,ch=170,274
             rect(x,y,cw,ch,'#29292c')
             action=actions.get(m['id'])
@@ -856,7 +857,10 @@ class VetoPage:
                 if not spawn_pix.isNull():
                     sw,sh=spawn_pix.width(),spawn_pix.height()
                     crop=QRectF(sw*.045,sh*.045,sw*.91,sh*.91)
-                    painter.drawPixmap(QRectF(805,side_y+75,350,215),spawn_pix,crop)
+                    ratio=min(350/crop.width(),215/crop.height())
+                    tw,th=crop.width()*ratio,crop.height()*ratio
+                    target=QRectF(805+(350-tw)/2,side_y+75+(215-th)/2,tw,th)
+                    painter.drawPixmap(target,spawn_pix,crop)
                 else:picture(spawn_path,805,side_y+75,350,215)
             else:picture(spawn_path,805,side_y+75,350,215)
             text(805,side_y+295,350,26,'Other team receives the opposite side',12,'#aaaaaf')
