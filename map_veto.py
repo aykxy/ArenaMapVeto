@@ -552,7 +552,13 @@ class VetoPage:
             action=actions.get(m['id'])
             status=('BANNED' if action['kind']=='ban' else 'PICKED') if action else ('DECIDER' if decider and decider['map_id']==m['id'] else 'AVAILABLE')
             card=MapStatusCard(status);cv=QVBoxLayout(card);cv.setSpacing(5)
-            cv.addWidget(image_label(m.get('preview'),190,105))
+            cv.setContentsMargins(9,9,9,9)
+            # Portrait-first cards match the supplied Arena map screenshots.
+            # Keep the full image visible; never crop the map itself.
+            portrait=image_label(m.get('preview'),190,230)
+            portrait.setFixedHeight(230)
+            portrait.setMinimumWidth(175)
+            cv.addWidget(portrait)
             cv.addWidget(label(m['name']))
             colour={'BANNED':'#ff4556','PICKED':'#00d78a','DECIDER':'#00d78a','AVAILABLE':'#bfc1c6'}[status]
             state=label(status);state.setStyleSheet('color:'+colour+';font-weight:bold;')
