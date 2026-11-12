@@ -157,16 +157,36 @@ def panel():
     return w,v
 
 
+class AspectImageLabel(QLabel):
+    """Scale the source image to the available widget area without cropping."""
+    def __init__(self, path, width, height):
+        super().__init__()
+        self.source = QPixmap(path) if path and Path(path).is_file() else QPixmap()
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setMinimumSize(1, height)
+        self.setStyleSheet('background:#28282b;border:1px solid #47474a;color:#9b9ba3;')
+        if self.source.isNull():
+            self.setText('MAP IMAGE NOT UPLOADED')
+        else:
+            self._refresh_image()
+
+    def _refresh_image(self):
+        if self.source.isNull():
+            return
+        available = self.contentsRect().size()
+        if available.width() <= 1 or available.height() <= 1:
+            return
+        self.setPixmap(self.source.scaled(
+            available, Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh_image()
+
+
 def image_label(path, width=330, height=185):
-    w=QLabel();w.setAlignment(Qt.AlignmentFlag.AlignCenter);w.setMinimumHeight(height)
-    w.setStyleSheet('background:#28282b;border:1px solid #47474a;color:#9b9ba3;')
-    if path and Path(path).is_file():
-        pix=QPixmap(path)
-        if not pix.isNull():
-            w.setPixmap(pix.scaled(width,height,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
-            return w
-    w.setText('MAP IMAGE NOT UPLOADED')
-    return w
+    return AspectImageLabel(path, width, height)
 
 
 class MapStatusCard(QFrame):
@@ -607,8 +627,8 @@ class VetoPage:
             rv.addWidget(label('The other team gets the opposite side. You can continue map bans/picks at any time.',True))
             map_rec=next(m for m in record['pool'] if m['id']==side_action['map_id'])
             # Larger, uncropped spawn diagram keeps both coloured spawn markers visible.
-            spawn_preview=image_label(map_rec.get('spawns'),480,260)
-            spawn_preview.setMinimumHeight(260)
+            spawn_preview=image_label(map_rec.get('spawns'),480,300)
+            spawn_preview.setMinimumHeight(300)
             rv.addWidget(spawn_preview)
             choices=QWidget();cr=QHBoxLayout(choices);cr.setContentsMargins(0,0,0,0)
             def choose_side(colour,mid=side_action['map_id']):
